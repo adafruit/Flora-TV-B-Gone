@@ -1,13 +1,20 @@
 /*
-TV-B-Gone for Arduino version 1.2, Oct 23 2010
-Ported to Arduino by Ken Shirriff=
-http://www.arcfn.com/2009/12/tv-b-gone-for-arduino.html
+Flora TV-B-Gone
 
-The hardware for this project uses an Arduino:
- Connect an IR LED to pin 3 (RLED).
- Connect a visible LED to pin 13 (or use builtin LED in some Arduinos).
- Connect a pushbutton between pin 2 (TRIGGER) and ground.
+Code updated for Flora's 32u4 microcontroller by Phillip Burgess for Adafruit Industries
+
+Complete instructions: http://learn.adafruit.com/flora-tv-b-gone/
+
+The hardware for this project uses an Adafruit Flora (Arduino-compatible 32u4):
+ Connect the base of an NPN bipolar transistor to pin 3, marked "SCL" on Flora (RLED).
+ Connect the collector pin of the transistor to ground (Marked "GND" on Flora).
+ Connect the transistor's emitter to the positive lead of an IR LED, and connect the LED's negative leg to ground through a 100-ohm resistor.
+ Connect a pushbutton between pin D9 (TRIGGER) and ground.
  Pin 5 (REGIONSWITCH) is floating for North America, or wired to ground for Europe.
+
+-------------
+based on Ken Shirriff's port of TV-B-Gone to Arduino, version 1.2, Oct 23 2010
+http://www.arcfn.com/2009/12/tv-b-gone-for-arduino.html
 
 The original code is:
 TV-B-Gone Firmware version 1.2
@@ -21,7 +28,6 @@ TV-B-Gone Firmware version 1.2
       -- Mitch Altman  18-Oct-2010
  Thanks to ka1kjz for the code for adding Sleep
       <http://www.ka1kjz.com/561/adding-sleep-to-tv-b-gone-code/>
-
 
  With some code from:
  Kevin Timmerman & Damien Good 7-Dec-07
@@ -84,13 +90,28 @@ extern uint8_t num_NAcodes, num_EUcodes;
  to generate one 'pair' from a long code. Each code has ~50 pairs! */
 void xmitCodeElement(uint16_t ontime, uint16_t offtime, uint8_t PWM_code )
 {
+#ifdef __AVR_ATmega32U4__
+  TCNT0 = 0;
+#else
   TCNT2 = 0;
+#endif
   if(PWM_code) {
     pinMode(IRLED, OUTPUT);
     // Fast PWM, setting top limit, divide by 8
     // Output to pin 3
+#ifdef __AVR_ATmega32U4__
+  #if (IRLED == 11)
+    TCCR0A = _BV(COM0A1) | _BV(COM0A0) | _BV(WGM01) | _BV(WGM00);
+  #elif (IRLED == 3)
+    TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM01) | _BV(WGM00);
+  #else
+    #error "IR LED must be on Leonardo digital pin 3 or 11."
+  #endif
+    TCCR0B = _BV(WGM02) | _BV(CS01);
+#else
     TCCR2A = _BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20);
     TCCR2B = _BV(WGM22) | _BV(CS21);
+#endif
   }
   else {
     // However some codes dont use PWM in which case we just turn the IR
@@ -103,8 +124,13 @@ void xmitCodeElement(uint16_t ontime, uint16_t offtime, uint8_t PWM_code )
   delay_ten_us(ontime);
 
   // Now we have to turn it off so disable the PWM output
+#ifdef __AVR_ATmega32U4__
+  TCCR0A = 0;
+  TCCR0B = 0;
+#else
   TCCR2A = 0;
   TCCR2B = 0;
+#endif
   // And make sure that the IR LED is off too (since the PWM may have
   // been stopped while the LED is on!)
   digitalWrite(IRLED, LOW);
@@ -188,8 +214,17 @@ uint8_t startOver;
 void setup()   {
   Serial.begin(9600);
 
+#ifdef __AVR_ATmega32U4__
+  // Timer0 is used on Arduino Leonardo (there is no Timer2).
+  // This means delay(), millis() etc. are not available,
+  // but they're currently not being used by this code.
+  TIMSK0 = 0; // Disable Timer0 interrupt
+  TCCR0A = 0;
+  TCCR0B = 0;
+#else
   TCCR2A = 0;
   TCCR2B = 0;
+#endif
 
   digitalWrite(LED, LOW);
   digitalWrite(IRLED, LOW);
@@ -271,8 +306,13 @@ Start_transmission:
     // Read the carrier frequency from the first byte of code structure
     const uint8_t freq = pgm_read_byte(data_ptr++);
     // set OCR for Timer1 to output this POWER code's carrier frequency
+#ifdef __AVR_ATmega32U4__
+    OCR0A = freq;
+    OCR0B = freq / 3; // 33% duty cycle
+#else
     OCR2A = freq;
     OCR2B = freq / 3; // 33% duty cycle
+#endif
 
     // Print out the frequency of the carrier and the PWM settings
     DEBUGP(putstring("\n\rOCR1: ");

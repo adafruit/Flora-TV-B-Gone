@@ -12,9 +12,9 @@
 
 // What pins do what
 #define DBG 12
-#define LED 13
-#define IRLED 3
-#define TRIGGER 2
+#define LED 7 // Flora's onboard LED is connected to D7
+#define IRLED 3 // D3 is marked "SCL" on Flora
+#define TRIGGER 9 // pushbutton will be connected to D9
 #define REGIONSWITCH 5
 
 // Lets us calculate the size of the NA/EU databases
@@ -43,3 +43,4 @@ struct IrCode {
   uint16_t const *times;
   uint8_t const*codes;
 };
+
