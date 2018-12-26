@@ -1,3 +1,7 @@
+# Deprecated Code - Doesn't work anymore
+
+## Working code now available at https://github.com/adafruit/Adafruit_Learning_System_Guides/tree/master/Flora_TV_B_Gone
+
 This code is the TV-B-Gone library ported to run on the Adafruit Flora.
 
 Code updated for Flora's 32u4 microcontroller by Phillip Burgess for Adafruit Industries
